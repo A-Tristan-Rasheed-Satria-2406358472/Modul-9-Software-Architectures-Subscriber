@@ -49,3 +49,20 @@ Perbaikan yang terlihat dari kode publisher/subscriber:
 - URL broker dan nama queue masih hardcoded; sebaiknya pakai environment variable supaya fleksibel.
 - Publisher saat ini fixed payload, bisa dibuat configurable (jumlah message/interval) untuk eksperimen beban yang lebih terukur.
 - Logging/error handling bisa diperjelas (misalnya pakai `tracing`) agar observasi performa dan debugging lebih mudah.
+
+# Cloud Experiment (Bonus)
+
+Untuk eksperimen di cloud, subscriber juga harus diarahkan ke host/IP broker cloud, bukan `localhost`, contohnya:
+
+`amqp://guest:guest@<PUBLIC_IP_OR_DNS>:5672`
+
+Di sisi infrastruktur, firewall/security group perlu mengizinkan koneksi masuk ke:
+
+- `5672` (AMQP)
+- `15672` (opsional, dashboard RabbitMQ)
+
+Refleksi “Simulating slow subscriber” di cloud:
+
+- Pola backlog tetap sama seperti lokal: kalau publisher kirim lebih cepat dari subscriber memproses, queue akan naik.
+- Karena subscriber diberi delay 1 detik per message, throughput konsumsi rendah dan queue spike terlihat jelas saat publisher dispam.
+- Saat jumlah subscriber ditambah (misalnya 3 console/instance), spike turun lebih cepat karena total throughput konsumsi meningkat (competing consumers).
