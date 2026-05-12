@@ -26,3 +26,11 @@ Jadi kalau dibaca lengkap, artinya program mencoba login ke broker AMQP yang ber
 - Username dan password dipakai untuk autentikasi
 - `localhost` berarti koneksi diarahkan ke mesin sendiri
 - Port `5672` adalah jalur komunikasi default untuk service AMQP
+
+# Simulation slow subscriber
+
+Pada percobaan saya, total queue (peak-nya) sempat mencapai sekitar **80**. Nilai ini bisa lebih besar dari contoh (misalnya 20) karena publisher dijalankan berkali-kali dengan cepat, sehingga laju message masuk jauh lebih tinggi daripada laju proses subscriber.
+
+Di sisi lain, subscriber sengaja diperlambat dengan delay 1 detik per message, jadi message diproses satu per satu dengan throughput rendah. Akibatnya terjadi backlog: message baru terus menumpuk di queue sebelum sempat diproses, dan puncak jumlah queue menjadi tinggi (sekitar 80 pada mesin saya).
+
+![# Simulation slow subscriber](public/image/simulate.png)

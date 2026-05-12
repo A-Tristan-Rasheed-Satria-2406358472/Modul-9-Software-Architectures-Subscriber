@@ -5,6 +5,8 @@ use lapin::{
     types::FieldTable,
     Connection, ConnectionProperties,
 };
+use std::thread;
+use std::time::Duration;
 use tokio_amqp::*;
 
 #[derive(Debug, Clone, BorshDeserialize, BorshSerialize)]
@@ -15,6 +17,8 @@ pub struct UserCreatedEventMessage {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let ten_millis = Duration::from_secs(1);
+
     let conn = Connection::connect(
         "amqp://guest:guest@localhost:5672/%2f",
         ConnectionProperties::default().with_tokio(),
@@ -42,6 +46,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     while let Some(delivery) = consumer.next().await {
         let delivery = delivery?;
         let message = UserCreatedEventMessage::try_from_slice(&delivery.data)?;
+        thread::sleep(ten_millis);
         println!(
             "[Tristan Rasheed Satria - 2406358472] Message received: {:?}",
             message
