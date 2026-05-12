@@ -33,4 +33,19 @@ Pada percobaan saya, total queue (peak-nya) sempat mencapai sekitar **80**. Nila
 
 Di sisi lain, subscriber sengaja diperlambat dengan delay 1 detik per message, jadi message diproses satu per satu dengan throughput rendah. Akibatnya terjadi backlog: message baru terus menumpuk di queue sebelum sempat diproses, dan puncak jumlah queue menjadi tinggi (sekitar 80 pada mesin saya).
 
-![# Simulation slow subscriber](public/image/simulate.png)
+![Simulation slow subscriber](public/image/simulate.png)
+
+# Reflection and Running at least three subscribers
+
+![Running at least three subscribers](public/image/sim-3-subs.png)
+
+Ketika saya jalankan 3 subscriber sekaligus, message diproses bersama-sama (competing consumers) dari queue yang sama. Itu sebabnya isi event terbagi antar console subscriber, bukan diproses penuh oleh satu subscriber saja.
+
+Di RabbitMQ, spike queue jadi turun lebih cepat dibanding saat hanya 1 subscriber. Alasannya throughput konsumsi naik karena ada lebih banyak consumer aktif yang mengambil message secara paralel, jadi backlog lebih cepat habis walaupun publisher mengirim burst request.
+
+Perbaikan yang terlihat dari kode publisher/subscriber:
+
+- Delay di subscriber sekarang pakai `thread::sleep` (blocking), untuk async runtime lebih tepat `tokio::time::sleep`.
+- URL broker dan nama queue masih hardcoded; sebaiknya pakai environment variable supaya fleksibel.
+- Publisher saat ini fixed payload, bisa dibuat configurable (jumlah message/interval) untuk eksperimen beban yang lebih terukur.
+- Logging/error handling bisa diperjelas (misalnya pakai `tracing`) agar observasi performa dan debugging lebih mudah.
