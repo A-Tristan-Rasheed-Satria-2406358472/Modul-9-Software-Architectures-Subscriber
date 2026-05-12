@@ -1,5 +1,11 @@
 use borsh::{BorshDeserialize, BorshSerialize};
-use crosstown_bus::{CrosstownBus, HandleError, MessageHandler};
+use futures_util::StreamExt;
+use lapin::{
+    options::{BasicAckOptions, BasicConsumeOptions, QueueDeclareOptions},
+    types::FieldTable,
+    Connection, ConnectionProperties,
+};
+use tokio_amqp::*;
 
 #[derive(Debug, Clone, BorshDeserialize, BorshSerialize)]
 pub struct UserCreatedEventMessage {
@@ -7,40 +13,41 @@ pub struct UserCreatedEventMessage {
     pub user_name: String,
 }
 
-pub struct UserCreatedHandler;
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let conn = Connection::connect(
+        "amqp://guest:guest@localhost:5672/%2f",
+        ConnectionProperties::default().with_tokio(),
+    )
+    .await?;
+    let channel = conn.create_channel().await?;
 
-impl MessageHandler<UserCreatedEventMessage> for UserCreatedHandler {
-    fn get_handler_action(&self) -> String {
-        "process_user_created".to_owned()
-    }
+    channel
+        .queue_declare(
+            "user_created",
+            QueueDeclareOptions::default(),
+            FieldTable::default(),
+        )
+        .await?;
 
-    fn handle(
-        &self,
-        message: Box<UserCreatedEventMessage>,
-    ) -> Result<(), HandleError> {
+    let mut consumer = channel
+        .basic_consume(
+            "user_created",
+            "subscriber_consumer",
+            BasicConsumeOptions::default(),
+            FieldTable::default(),
+        )
+        .await?;
+
+    while let Some(delivery) = consumer.next().await {
+        let delivery = delivery?;
+        let message = UserCreatedEventMessage::try_from_slice(&delivery.data)?;
         println!(
             "[Tristan Rasheed Satria - 2406358472] Message received: {:?}",
             message
         );
-        Ok(())
+        delivery.ack(BasicAckOptions::default()).await?;
     }
-}
 
-fn main() {
-    let listener = CrosstownBus::new_queue_listener(
-        "amqp://guest:guest@localhost:5672".to_owned(),
-    )
-    .unwrap();
-
-    let _ = listener.listen(
-        "user_created".to_owned(),
-        UserCreatedHandler {},
-        crosstown_bus::QueueProperties {
-            auto_delete: false,
-            durable: false,
-            use_dead_letter: true,
-        },
-    );
-
-    loop {}
+    Ok(())
 }
